@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aviator Pro Game - Secure & Full</title>
+    <style>
+        :root {
+            --game-bg: #2c3440; 
+            --game-surface: #353f4f;
+            --game-text-primary: #e0e0e0;
+            --game-text-secondary: #a0a0b0;
+            --accent-green: #00e676; 
+            --accent-green-dark: #00b04c;
+            --accent-red: #ff5252;
+            --accent-yellow: #ffd600;
+            --font-family: 'Roboto', 'Segoe UI', Tahoma, sans-serif;
+            --container-bg: #1e1e1e;
+            --container-surface: #2a2a2a;
+            --text-color: #e0e0e0;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: var(--font-family); margin: 0; background-color: var(--container-bg);
+            color: var(--text-color); display: flex; justify-content: center; align-items: flex-start;
+            min-height: 100vh; padding: 10px; 
+        }
+        .container {
+            background-color: var(--container-surface); padding: 15px 10px; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5); width: 100%; max-width: 750px; text-align: center;
+        }
+        .page { display: none; }
+        .page.active { display: block; }
+        h1 { font-size: clamp(1.5em, 5vw, 2em); color: var(--accent-green); margin-bottom: 15px;}
+        h2 { font-size: clamp(1.2em, 4vw, 1.7em); margin-bottom: 15px; color: var(--game-text-primary); }
+        #loadingIndicator { display: none; padding: 20px; font-size: 1.2em; color: var(--accent-yellow);}
+        .game-history-reel { display: flex; gap: 8px; padding: 8px 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--accent-green) var(--game-surface); border-bottom: 1px solid var(--game-surface); margin-bottom: 10px; }
+        .history-item { padding: 5px 10px; border-radius: 15px; font-size: 0.8em; font-weight: bold; color: white; white-space: nowrap; }
+        .history-item.low { background-color: #4a6d80; }
+        .history-item.medium { background-color: #bf7d1a; }
+        .history-item.high { background-color: var(--accent-red); }
+        .game-display-area { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; background-color: rgba(0,0,0,0.1); border-radius: 8px; min-height: 200px; padding: 10px; }
+        #game-multiplier-main { font-size: clamp(3em, 10vw, 5em); font-weight: 700; color: var(--accent-yellow); margin-bottom: 10px; line-height: 1; text-shadow: 0 0 15px rgba(255, 214, 0, 0.5); }
+        #game-multiplier-main.crashed { color: var(--accent-red); text-shadow: 0 0 15px rgba(255, 82, 82, 0.5); }
+        #game-status-info { font-size: 0.95em; color: var(--game-text-secondary); min-height: 18px; }
+        .betting-area { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+        .betting-mode-tabs { display: flex; margin-bottom: 5px; }
+        .betting-mode-tab { flex-grow:1; padding: 8px 10px; background-color: var(--game-surface); color: var(--game-text-secondary); border: none; cursor: pointer; font-size: 0.9em; border-top-left-radius: 5px; border-top-right-radius: 5px; }
+        .betting-mode-tab.active { background-color: var(--accent-green); color: #111; font-weight: bold; }
+        .controls-panel { background-color: var(--game-surface); padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 15px; }
+        .amount-control, .autocashout-control { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;}
+        .amount-control label, .autocashout-control label { font-size: 0.9em; color: var(--game-text-secondary); flex-shrink: 0; margin-right:5px;}
+        .amount-control input[type="number"], .autocashout-control input[type="number"] { flex-grow: 1; padding: 10px; background-color: var(--game-bg); border: 1px solid #4a5568; color: var(--game-text-primary); border-radius: 5px; text-align: center; font-size: 1.1em; -moz-appearance: textfield; min-width: 80px;}
+        .amount-control input[type="number"]::-webkit-outer-spin-button, .amount-control input[type="number"]::-webkit-inner-spin-button, .autocashout-control input[type="number"]::-webkit-outer-spin-button, .autocashout-control input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .amount-adjust-btn { padding: 8px 10px; background-color: #4a5568; color: var(--game-text-primary); border: none; border-radius: 5px; font-size: 0.8em; cursor: pointer; }
+        #main-action-button { width: 100%; padding: 15px; font-size: 1.2em; font-weight: bold; border-radius: 8px; color: #111; transition: background-color 0.2s ease, color 0.2s ease; }
+        #main-action-button.bet-ready { background-color: var(--accent-green); }
+        #main-action-button.bet-ready:hover { background-color: var(--accent-green-dark); }
+        #main-action-button.cashout-ready { background-color: var(--accent-yellow); }
+        #main-action-button.cashout-ready:hover { background-color: #e6c200; }
+        #main-action-button:disabled { background-color: #555 !important; color: #888 !important; cursor: not-allowed; }
+        #game-round-result { text-align: center; font-weight: bold; font-size: 1em; min-height: 20px; margin-top: 5px; }
+        .message-display { margin-top: 15px; padding: 10px; border-radius: 4px; font-size: 0.9em; text-align: left; }
+        #dashboardPage header { margin-bottom: 15px; }
+        #user-info { margin-bottom: 10px; padding: 12px; background-color: var(--game-surface); border-radius: 8px; text-align: left; border: 1px solid #444; }
+        #user-info p { margin: 7px 0; font-size: 0.95em; color: var(--text-color); }
+        #user-info span { font-weight: bold; color: var(--accent-yellow); }
+        .dashboard-nav { margin-bottom: 15px; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap;}
+        .dashboard-nav button { background-color: var(--game-surface); font-size: 0.8em; padding: 8px 10px; color: var(--game-text-secondary); border: 1px solid #444; border-radius: 5px; flex-grow:1; max-width: 100px;}
+        .dashboard-nav button.active { background-color: var(--accent-green); color: #111; font-weight: bold; border-color: var(--accent-green);}
+        .dashboard-section { display: none; padding-top: 10px; border-top: 1px solid #444; margin-top: 10px;}
+        .dashboard-section.active { display: block; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: var(--game-text-secondary); font-size: 0.8em; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #444; border-radius: 5px; box-sizing: border-box; font-size: 0.9em; background-color: #333; color: var(--text-color); }
+        .btn { background-color: var(--accent-green); color: #111; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; margin-top: 8px; font-size: 0.9em; font-weight: bold; transition: background-color 0.2s ease; }
+        .btn:hover { background-color: var(--accent-green-dark); }
+        .link-button { background: none; border: none; color: var(--accent-yellow); text-decoration: underline; cursor: pointer; padding: 0; font-size: 0.9em;}
+        .turnover-info, .referral-info {
+            background-color: var(--game-bg); padding: 12px; border-radius: 6px;
+            margin-bottom: 15px; text-align: left; font-size: 0.9em;
+        }
+        .turnover-info p, .referral-info p { margin: 5px 0; color: var(--game-text-secondary); }
+        .turnover-info strong, .referral-info strong { color: var(--accent-yellow); }
+        #referredUsersList { list-style: none; padding-left: 0; }
+        #referredUsersList li { background-color: var(--game-surface); padding: 8px; border-radius: 4px; margin-bottom: 5px; font-size: 0.85em;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Home Page Section -->
+        <div id="homePage" class="page active">
+             <h1>Aviator Pro</h1>
+             <p>Experience the thrill. Bet, watch the multiplier soar, and cash out before the crash!</p>
+             <button id="navigateToLoginBtn" class="btn">Login</button>
+             <button id="navigateToRegisterBtn" class="btn" style="background-color: #555;">Register</button>
+        </div>
+
+        <!-- Registration Page Section -->
+        <div id="registerPage" class="page">
+            <h2>Create Account</h2>
+            <form id="registerForm">
+                <div class="form-group"><label for="registerEmail">Email:</label><input type="email" id="registerEmail" required></div>
+                <div class="form-group"><label for="registerPassword">Password:</label><input type="password" id="registerPassword" minlength="6" required></div>
+                <div class="form-group"><label for="registerReferralCode">Referral Code (Optional):</label><input type="text" id="registerReferralCode" placeholder="Enter if you have one"></div>
+                <button type="submit" class="btn">Register</button>
+            </form>
+            <p id="registerError" class="message-display" style="display:none;"></p>
+            <p>Already registered? <button class="link-button" id="switchToLoginBtn">Login</button></p>
+        </div>
+
+        <!-- Login Page Section -->
+        <div id="loginPage" class="page">
+            <h2>Login</h2>
+            <form id="loginForm">
+                 <div class="form-group"><label for="loginEmail">Email:</label><input type="email" id="loginEmail" required></div>
+                 <div class="form-group"><label for="loginPassword">Password:</label><input type="password" id="loginPassword" required></div>
+                 <button type="submit" class="btn">Login</button>
+            </form>
+            <p id="loginError" class="message-display" style="display:none;"></p>
+            <p>No account? <button class="link-button" id="switchToRegisterBtn">Register</button></p>
+        </div>
+
+        <!-- Dashboard Page Section -->
+        <div id="dashboardPage" class="page">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h1 style="margin: 0; font-size: 1.5em;">Aviator</h1>
+                    <button id="logoutButton" class="btn" style="background-color: var(--accent-red); font-size:0.8em; padding: 6px 10px;">Logout</button>
+                </div>
+                <div id="user-info">
+                    <p>User: <span id="userEmailDisplay"></span></p>
+                    <p>Balance: <span id="userBalanceDisplay">Rs. 0.00</span></p>
+                    <p style="font-size:0.8em; margin-top:5px;">Your Code: <span id="userReferralCodeDisplay" style="color: var(--accent-green);"></span></p>
+                </div>
+            </header>
+            <nav class="dashboard-nav">
+                <button class="dashboard-nav-btn active" data-section="gameSection">Play Game</button>
+                <button class="dashboard-nav-btn" data-section="depositSection">Deposit</button>
+                <button class="dashboard-nav-btn" data-section="withdrawSection">Withdraw</button>
+                <button class="dashboard-nav-btn" data-section="referSection">Refer & Earn</button>
+                <button class="dashboard-nav-btn" data-section="supportSection">Support</button>
+            </nav>
+            <main>
+                <section id="gameSection" class="dashboard-section active">
+                    <div class="game-history-reel" id="gameHistoryReel"></div>
+                    <div class="game-display-area">
+                        <div id="game-multiplier-main">1.00x</div>
+                        <div id="game-status-info">Initializing...</div>
+                    </div>
+                    <div class="betting-area">
+                        <div class="betting-mode-tabs">
+                            <button class="betting-mode-tab active" data-mode="manual">Manual</button>
+                            <button class="betting-mode-tab" data-mode="auto">Auto</button>
+                        </div>
+                        <div class="controls-panel" id="manualBettingPanel">
+                            <div class="amount-control">
+                                <label for="betAmountInputNew">Amount (Rs.):</label>
+                                <input type="number" id="betAmountInputNew" value="10" min="1" step="10">
+                                <button class="amount-adjust-btn" data-action="half">1/2</button>
+                                <button class="amount-adjust-btn" data-action="double">2x</button>
+                            </div>
+                            <div class="autocashout-control">
+                                <label for="autoCashoutInput">Auto Cash Out:</label>
+                                <input type="number" id="autoCashoutInput" placeholder="e.g., 2.5" min="1.01" step="0.1">
+                            </div>
+                            <button id="main-action-button" class="bet-ready">Place Bet</button>
+                            <div id="game-round-result"></div>
+                        </div>
+                        <div class="controls-panel" id="autoBettingPanel" style="display: none;">
+                            <p style="color: var(--game-text-secondary);">Auto betting controls (Coming Soon).</p>
+                        </div>
+                    </div>
+                </section>
+                <section id="depositSection" class="dashboard-section">
+                    <h2>Deposit Funds</h2>
+                    <div class="payment-instructions" style="margin-bottom: 20px; padding: 15px; background-color: var(--game-bg); border-radius: 8px; text-align: left; border: 1px solid var(--game-surface);">
+                        <h3 style="color: var(--accent-yellow); margin-top: 0; margin-bottom: 10px; font-size: 1.1em;">Payment Details:</h3>
+                        <p style="margin-bottom: 12px; font-size: 0.9em; color: var(--game-text-secondary);">
+                            Please send your payment to one of the following accounts. After sending, fill out the form below with your transaction details.
+                        </p>
+                        <div style="margin-bottom: 15px; padding: 10px; background-color: var(--container-surface); border-radius: 5px;">
+                            <strong style="color: var(--accent-green); display: block; margin-bottom: 5px;">Easypaisa:</strong>
+                            Account Number: <span style="font-weight: bold; color: var(--text-color);">03483886735</span><br>
+                            Account Holder: <span style="font-weight: bold; color: var(--text-color);">Asma Ul Husna</span>
+                        </div>
+                        <div style="padding: 10px; background-color: var(--container-surface); border-radius: 5px;">
+                            <strong style="color: var(--accent-green); display: block; margin-bottom: 5px;">JazzCash:</strong>
+                            Account Number: <span style="font-weight: bold; color: var(--text-color);">03190228256</span><br>
+                            Account Holder: <span style="font-weight: bold; color: var(--text-color);">Aqsa Ata</span>
+                        </div>
+                    </div>
+                    <form id="depositForm">
+                        <div class="form-group"><label for="depositAmount">Amount (Rs.):</label><input type="number" id="depositAmount" min="100" required></div>
+                        <div class="form-group"><label for="depositMethod">Payment Method Used:</label><select id="depositMethod" required><option value="">-- Select --</option><option value="Easypaisa">Easypaisa</option><option value="JazzCash">JazzCash</option></select></div>
+                        <div class="form-group"><label for="depositAccount">Your Account Number (Sender):</label><input type="text" id="depositAccount" placeholder="Your Easypaisa/Jazzcash #" required></div>
+                        <div class="form-group"><label for="depositTxnId">Transaction ID (TID / Trx ID):</label><input type="text" id="depositTxnId" required></div>
+                        <button type="submit" class="btn">Submit Deposit Proof</button>
+                    </form>
+                    <div id="depositMessage" class="message-display" style="display:none;"></div>
+                </section>
+                <section id="withdrawSection" class="dashboard-section">
+                     <h2>Withdraw Funds</h2>
+                     <div id="turnoverInfoDisplay" class="turnover-info" style="display:none;">
+                         <p>Turnover Requirement Active</p>
+                         <p>Wagered: <strong id="currentTurnoverDisplay">Rs. 0.00</strong></p>
+                         <p>Required: <strong id="requiredTurnoverDisplay">Rs. 0.00</strong></p>
+                         <p id="turnoverStatusMessage" style="color: var(--accent-red); font-weight:bold;"></p>
+                     </div>
+                    <form id="withdrawForm">
+                        <div class="form-group"><label for="withdrawAmount">Amount (Rs.):</label><input type="number" id="withdrawAmount" min="500" required></div>
+                        <div class="form-group"><label for="withdrawMethod">Withdrawal Method:</label><select id="withdrawMethod" required><option value="">-- Select --</option><option value="Easypaisa">Easypaisa</option><option value="JazzCash">JazzCash</option></select></div>
+                        <div class="form-group"><label for="withdrawAccount">Your Wallet Number (Receiver):</label><input type="text" id="withdrawAccount" placeholder="Your Easypaisa/Jazzcash #" required></div>
+                        <button type="submit" class="btn">Request Withdraw</button>
+                    </form>
+                    <div id="withdrawMessage" class="message-display" style="display:none;"></div>
+                </section>
+                <section id="referSection" class="dashboard-section">
+                    <h2>Refer & Earn</h2>
+                    <div class="referral-info">
+                        <p>Your Unique Referral Code: <strong id="userReferralCodeSectionDisplay" style="font-size: 1.2em; color:var(--accent-green)"></strong></p>
+                        <button id="copyReferralCodeBtn" class="btn" style="font-size:0.8em; padding: 5px 10px; margin-top:0; margin-left:10px;">Copy Code</button>
+                        <p>Share this code with friends. When they sign up and deposit, you earn rewards!</p>
+                        <p>Total Referral Earnings: <strong id="totalReferralEarningsDisplay">Rs. 0.00</strong></p>
+                    </div>
+                    <h3>Your Referrals:</h3>
+                    <ul id="referredUsersList">
+                         <p id="noReferralsMessage" style="color:var(--game-text-secondary); font-style:italic;">You haven't referred anyone yet.</p>
+                    </ul>
+                    <div id="referralMessage" class="message-display" style="display:none;"></div>
+                </section>
+                <section id="supportSection" class="dashboard-section">
+                    <h2>Contact Support</h2>
+                    <form id="supportForm">
+                        <div class="form-group"><label for="supportName">Name:</label><input type="text" id="supportName" required></div>
+                        <div class="form-group"><label for="supportEmail">Email:</label><input type="email" id="supportEmail" required></div>
+                        <div class="form-group"><label for="supportSubject">Subject:</label><input type="text" id="supportSubject" required></div>
+                        <div class="form-group"><label for="supportMessageText">Message:</label><textarea id="supportMessageText" rows="4" required></textarea></div>
+                        <button type="submit" class="btn">Send Message</button>
+                    </form>
+                    <div id="supportFormMessage" class="message-display" style="display:none;"></div>
+                </section>
+            </main>
+        </div>
+        <div id="loadingIndicator" style="display: none;"><p>Loading...</p></div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script>
+        // =================================================================================
+        // CRITICAL: REPLACE THIS WITH YOUR ACTUAL FIREBASE PROJECT CONFIGURATION
+        // =================================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpsXaQhpGFp6NEEZGoGMx-DWgNEs_o0EI", // <--- REPLACE
+            authDomain: "netflix-3c977.firebaseapp.com", // <--- REPLACE
+            projectId: "netflix-3c977", // <--- REPLACE
+            storageBucket: "netflix-3c977.appspot.com", // <--- REPLACE
+            messagingSenderId: "280650667486", // <--- REPLACE
+            appId: "1:280650667486:android:ed640984f0f0f352af394f" // <--- REPLACE
+        };
+        // =================================================================================
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth(); 
+        const db = firebase.firestore();
+
+        // --- Global State & DOM Elements ---
+        let currentUserId = null;
+        let currentUserData = {}; 
+
+        const allPages = document.querySelectorAll('.page');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+        const userBalanceDisplay = document.getElementById('userBalanceDisplay');
+        const userReferralCodeDisplay = document.getElementById('userReferralCodeDisplay');
+        
+        const registerForm = document.getElementById('registerForm');
+        const loginForm = document.getElementById('loginForm');
+        
+        const turnoverInfoDisplay = document.getElementById('turnoverInfoDisplay');
+        const currentTurnoverDisplay = document.getElementById('currentTurnoverDisplay');
+        const requiredTurnoverDisplay = document.getElementById('requiredTurnoverDisplay');
+        const turnoverStatusMessage = document.getElementById('turnoverStatusMessage');
+
+        const userReferralCodeSectionDisplay = document.getElementById('userReferralCodeSectionDisplay');
+        const copyReferralCodeBtn = document.getElementById('copyReferralCodeBtn');
+        const totalReferralEarningsDisplay = document.getElementById('totalReferralEarningsDisplay');
+        const referredUsersList = document.getElementById('referredUsersList');
+        const noReferralsMessage = document.getElementById('noReferralsMessage');
+        const referralMessage = document.getElementById('referralMessage');
+
+        const gameHistoryReel = document.getElementById('gameHistoryReel');
+        const gameMultiplierMain = document.getElementById('game-multiplier-main');
+        const gameStatusInfo = document.getElementById('game-status-info');
+        const betAmountInputNew = document.getElementById('betAmountInputNew');
+        const autoCashoutInput = document.getElementById('autoCashoutInput');
+        const mainActionButton = document.getElementById('main-action-button');
+        const gameRoundResult = document.getElementById('game-round-result');
+        const manualBettingPanel = document.getElementById('manualBettingPanel');
+        const autoBettingPanel = document.getElementById('autoBettingPanel');
+        const bettingModeTabs = document.querySelectorAll('.betting-mode-tab');
+        const amountAdjustButtons = document.querySelectorAll('.amount-adjust-btn');
+
+        const navigateToLoginBtn = document.getElementById('navigateToLoginBtn');
+        const navigateToRegisterBtn = document.getElementById('navigateToRegisterBtn');
+        const switchToLoginBtn = document.getElementById('switchToLoginBtn');
+        const switchToRegisterBtn = document.getElementById('switchToRegisterBtn');
+        const logoutButton = document.getElementById('logoutButton');
+
+        const dashboardNavButtons = document.querySelectorAll('.dashboard-nav-btn');
+        const dashboardSections = document.querySelectorAll('.dashboard-section');
+
+        const registerError = document.getElementById('registerError');
+        const loginError = document.getElementById('loginError');
+
+        const depositForm = document.getElementById('depositForm');
+        const depositMessage = document.getElementById('depositMessage');
+        const withdrawForm = document.getElementById('withdrawForm');
+        const withdrawMessage = document.getElementById('withdrawMessage');
+        const supportForm = document.getElementById('supportForm');
+        const supportFormMessage = document.getElementById('supportFormMessage');
+
+        // --- Utility Functions ---
+        function showPage(pageId) {
+            loadingIndicator.style.display = 'none';
+            allPages.forEach(page => page.classList.remove('active'));
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.classList.add('active');
+            } else {
+                console.error("Page not found:", pageId);
+                document.getElementById('homePage').classList.add('active'); 
+            }
+
+            if (pageId === 'dashboardPage' && auth.currentUser) {
+                const gameNavButton = document.querySelector('.dashboard-nav-btn[data-section="gameSection"]');
+                if (gameNavButton && !gameNavButton.classList.contains('active')) {
+                    gameNavButton.click(); 
+                } else if (gameNavButton && gameNavButton.classList.contains('active')) {
+                     if (gameState === 'IDLE' || gameState === 'PREPARING' || gameState === 'CRASHED') {
+                        initializeGameNew();
+                     }
+                }
+                const supportEmailInput = document.getElementById('supportEmail');
+                if(supportEmailInput && auth.currentUser.email) supportEmailInput.value = auth.currentUser.email;
+                updateReferralSectionUI(); 
+                updateTurnoverUI(); 
+            }
+        }
+
+        function displayFormMessage(element, message, type = 'info') {
+            if (!element) { console.error("Message element not found for:", message); return; }
+            element.textContent = message;
+            element.className = 'message-display'; 
+            if (type === 'error') element.style.color = 'var(--accent-red)';
+            else if (type === 'success') element.style.color = 'var(--accent-green)';
+            else element.style.color = 'var(--game-text-secondary)'; 
+            element.style.display = 'block';
+            setTimeout(() => { element.style.display = 'none'; }, 5000);
+        }
+
+        function generateReferralCode(length = 6) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // --- Authentication Logic ---
+        auth.onAuthStateChanged(user => {
+            loadingIndicator.style.display = 'block';
+            if (user) {
+                currentUserId = user.uid;
+                userEmailDisplay.textContent = user.email;
+                
+                db.collection('users').doc(user.uid).onSnapshot(doc => {
+                    if (doc.exists) {
+                        currentUserData = doc.data();
+                        userBalanceDisplay.textContent = `Rs. ${currentUserData.balance?.toFixed(2) || '0.00'}`;
+                        userReferralCodeDisplay.textContent = currentUserData.referralCode || 'N/A';
+                        updateReferralSectionUI(); 
+                        updateTurnoverUI(); 
+                    } else {
+                        console.warn("User document not found for UID:", user.uid, "- creating one.");
+                        const newReferralCode = generateReferralCode();
+                         db.collection('users').doc(user.uid).set({
+                            uid: user.uid, email: user.email, balance: 0,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            referralCode: newReferralCode, 
+                            referralEarnings: 0,
+                            referredBy: null,
+                            turnoverRequired: 0,
+                            currentTurnover: 0,
+                            turnoverRequirementActive: false,
+                            firstDepositMade: false 
+                        }).then(() => { /* onSnapshot will update currentUserData */ })
+                          .catch(err => console.error("Error creating user doc on the fly:", err));
+                    }
+                    const supportEmailInput = document.getElementById('supportEmail');
+                    if(supportEmailInput && user.email) supportEmailInput.value = user.email;
+                }, error => {
+                    console.error("Error fetching user data:", error);
+                    userBalanceDisplay.textContent = "Error";
+                });
+                showPage('dashboardPage');
+            } else {
+                currentUserId = null;
+                currentUserData = {};
+                userEmailDisplay.textContent = '';
+                userBalanceDisplay.textContent = 'Rs. 0.00';
+                userReferralCodeDisplay.textContent = '';
+                showPage('homePage'); 
+                resetGameNew(); 
+            }
+            loadingIndicator.style.display = 'none';
+        });
+
+        function handleLogout() { auth.signOut().catch(error => console.error('Sign out error:', error)); }
+
+        if (registerForm) {
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if(registerError) registerError.style.display = 'none';
+                const email = document.getElementById('registerEmail').value;
+                const password = document.getElementById('registerPassword').value;
+                const referralCodeInput = document.getElementById('registerReferralCode').value.trim().toUpperCase();
+                
+                let referredByUID = null;
+                if (referralCodeInput) {
+                    try {
+                        const referrerQuery = await db.collection('users').where('referralCode', '==', referralCodeInput).limit(1).get();
+                        if (!referrerQuery.empty) {
+                            referredByUID = referrerQuery.docs[0].id;
+                        } else {
+                            displayFormMessage(registerError, "Invalid referral code. Registration will proceed without it.", 'info');
+                        }
+                    } catch (err) {
+                        console.error("Error checking referral code:", err);
+                        displayFormMessage(registerError, "Error validating referral code. Proceeding without it.", 'info');
+                    }
+                }
+
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then(async (userCredential) => {
+                        const user = userCredential.user;
+                        const newReferralCode = generateReferralCode();
+                        const initialUserData = {
+                            uid: user.uid, email: user.email, balance: 0,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            referralCode: newReferralCode,
+                            referralEarnings: 0,
+                            referredBy: referredByUID || null,
+                            turnoverRequired: 0,
+                            currentTurnover: 0,
+                            turnoverRequirementActive: false,
+                            firstDepositMade: false
+                        };
+                        await db.collection('users').doc(user.uid).set(initialUserData);
+
+                        if (referredByUID) { 
+                            await db.collection('referralRecords').add({
+                                referrerUid: referredByUID,
+                                referredUid: user.uid,
+                                referredUserEmail: user.email,
+                                signupTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                                status: "signed_up" 
+                            });
+                        }
+                    })
+                    .then(() => { registerForm.reset(); })
+                    .catch((error) => { displayFormMessage(registerError, error.message, 'error'); });
+            });
+        }
+
+        if (loginForm) { 
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                if(loginError) loginError.style.display = 'none';
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                auth.signInWithEmailAndPassword(email, password)
+                    .then(() => { loginForm.reset(); })
+                    .catch((error) => { displayFormMessage(loginError, error.message, 'error'); });
+            });
+        }
+
+        // --- Page & Dashboard Navigation ---
+        navigateToLoginBtn?.addEventListener('click', () => showPage('loginPage'));
+        navigateToRegisterBtn?.addEventListener('click', () => showPage('registerPage'));
+        switchToLoginBtn?.addEventListener('click', () => showPage('loginPage'));
+        switchToRegisterBtn?.addEventListener('click', () => showPage('registerPage'));
+        logoutButton?.addEventListener('click', handleLogout);
+
+        dashboardNavButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionId = button.getAttribute('data-section');
+                dashboardNavButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                dashboardSections.forEach(section => {
+                    const isActive = section.id === sectionId;
+                    section.classList.toggle('active', isActive);
+                     if (isActive && section.id === 'supportSection' && auth.currentUser && auth.currentUser.email) {
+                        const supportEmailInput = document.getElementById('supportEmail');
+                        if (supportEmailInput && !supportEmailInput.value) { 
+                             supportEmailInput.value = auth.currentUser.email;
+                        }
+                    }
+                    if (isActive && section.id === 'referSection') updateReferralSectionUI();
+                    if (isActive && section.id === 'withdrawSection') updateTurnoverUI();
+                });
+            });
+        });
+
+        // --- Aviator Game Logic ---
+        let currentMultiplier = 1.00;
+        let crashPoint = 0;
+        let gameIntervalId = null;
+        let nextRoundTimerId = null;
+        let bettingPhaseTimeoutId = null;
+        let gameState = 'IDLE'; 
+        let userBetAmountThisRound = 0;
+        let hasCashedOutThisRound = false;
+        let autoCashoutTarget = 0;
+        const MULTIPLIER_INCREMENT = 0.01;
+        const INCREMENT_INTERVAL_MS = 100; 
+        const BETTING_TIME_MS = 7000; 
+        const NEXT_ROUND_DELAY_MS = 5000; 
+        let previousCrashesHistory = [];
+
+        function updateMainActionButton() { /* ... Same as previous version ... */ 
+            if (!mainActionButton) return;
+            if (gameState === 'BETTING') {
+                mainActionButton.disabled = false;
+                const currentBetVal = parseFloat(betAmountInputNew.value) || 0;
+                mainActionButton.textContent = `Bet (Rs. ${currentBetVal.toFixed(0)})`;
+                mainActionButton.className = 'bet-ready';
+            } else if (gameState === 'RUNNING' && userBetAmountThisRound > 0 && !hasCashedOutThisRound) {
+                mainActionButton.disabled = false;
+                const potentialWin = (userBetAmountThisRound * currentMultiplier);
+                mainActionButton.textContent = `Cash Out @ ${currentMultiplier.toFixed(2)}x (Win Rs. ${potentialWin.toFixed(2)})`;
+                mainActionButton.className = 'cashout-ready';
+            } else {
+                mainActionButton.disabled = true;
+                mainActionButton.className = ''; 
+                if(gameState === 'CRASHED' || gameState === 'PREPARING' || gameState === 'IDLE') {
+                    mainActionButton.textContent = 'Waiting for Next Round...';
+                } else {
+                     mainActionButton.textContent = 'Waiting...';
+                }
+            }
+        }
+        function updateMultiplierDisplayVisualsNew() { /* ... Same as previous version ... */ 
+            if(gameMultiplierMain) gameMultiplierMain.textContent = `${currentMultiplier.toFixed(2)}x`;
+            updateMainActionButton();
+        }
+        function generateCrashPointNew() { /* ... Same as previous version ... */ 
+            const r = Math.random(); let point;
+            if (r < 0.02) { point = 1.00 + Math.random() * 0.05; }
+            else if (r < 0.50) { point = 1.01 + Math.pow(Math.random(), 3) * 2.5; } 
+            else if (r < 0.78) { point = 2.5 + Math.pow(Math.random(), 2.5) * 5.5; } 
+            else if (r < 0.94) { point = 8 + Math.pow(Math.random(), 2) * 32; }   
+            else { point = 40 + Math.random() * 160; } 
+            return parseFloat(Math.max(1.00, point).toFixed(2));
+        }
+        function startBettingPhaseNew() { /* ... Same as previous version ... */ 
+            resetRoundVisualsAndStateNew();
+            gameState = 'BETTING';
+            crashPoint = generateCrashPointNew();
+            if(gameMultiplierMain) gameMultiplierMain.classList.remove('crashed');
+            updateMainActionButton();
+            let timeLeft = BETTING_TIME_MS / 1000;
+            if(gameStatusInfo) gameStatusInfo.textContent = `Place bets! Starts in ${timeLeft}s...`;
+            if (bettingPhaseTimeoutId) clearTimeout(bettingPhaseTimeoutId);
+            let bettingTimerInterval = setInterval(() => {
+                timeLeft--;
+                if(timeLeft >=0 && gameStatusInfo) gameStatusInfo.textContent = `Place bets! Starts in ${timeLeft}s...`;
+                else clearInterval(bettingTimerInterval); 
+            }, 1000);
+            bettingPhaseTimeoutId = setTimeout(() => {
+                clearInterval(bettingTimerInterval);
+                if (gameState === 'BETTING') { startGameRunNew(); }
+            }, BETTING_TIME_MS);
+        }
+        function startGameRunNew() { /* ... Same as previous version ... */ 
+            if (gameState !== 'BETTING' && gameState !== 'PREPARING') return; 
+            gameState = 'RUNNING'; currentMultiplier = 1.00; 
+            autoCashoutTarget = parseFloat(autoCashoutInput.value) || 0;
+            updateMultiplierDisplayVisualsNew();
+            if(gameStatusInfo) gameStatusInfo.textContent = "Taking Off!";
+            if (gameIntervalId) clearInterval(gameIntervalId); 
+            gameIntervalId = setInterval(() => {
+                currentMultiplier += MULTIPLIER_INCREMENT;
+                currentMultiplier = parseFloat(currentMultiplier.toFixed(2)); 
+                updateMultiplierDisplayVisualsNew();
+                if (userBetAmountThisRound > 0 && !hasCashedOutThisRound && autoCashoutTarget > 0 && currentMultiplier >= autoCashoutTarget) cashOutNew();
+                if (currentMultiplier >= crashPoint) handleCrashNew();
+            }, INCREMENT_INTERVAL_MS);
+        }
+        async function handleCrashNew() { /* ... Same as previous version ... */ 
+            if(gameIntervalId) clearInterval(gameIntervalId); gameIntervalId = null;
+            gameState = 'CRASHED';
+            if(gameMultiplierMain) { gameMultiplierMain.textContent = `${crashPoint.toFixed(2)}x`; gameMultiplierMain.classList.add('crashed'); }
+            if(gameStatusInfo) gameStatusInfo.textContent = `💥 Flew Away @ ${crashPoint.toFixed(2)}x!`;
+            addCrashToHistoryReel(crashPoint);
+            if (userBetAmountThisRound > 0 && !hasCashedOutThisRound) {
+                if(gameRoundResult) { gameRoundResult.textContent = `You lost Rs. ${userBetAmountThisRound.toFixed(2)}.`; gameRoundResult.style.color = 'var(--accent-red)';}
+                if(currentUserId) db.collection('users').doc(currentUserId).collection('betHistory').add({
+                    amount: userBetAmountThisRound, outcome: 'loss', multiplier: crashPoint, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } else if (!hasCashedOutThisRound && gameRoundResult) { gameRoundResult.textContent = "Round Ended."; gameRoundResult.style.color = 'var(--game-text-secondary)';}
+            updateMainActionButton(); prepareNextRoundNew();
+        }
+        async function cashOutNew() { /* ... Same as previous version ... */ 
+            if (gameState !== 'RUNNING' || !userBetAmountThisRound || hasCashedOutThisRound || !currentUserId) return;
+            hasCashedOutThisRound = true; const winnings = userBetAmountThisRound * currentMultiplier;
+            if(gameRoundResult) { gameRoundResult.textContent = `Cashed out @ ${currentMultiplier.toFixed(2)}x! Won Rs. ${winnings.toFixed(2)}.`; gameRoundResult.style.color = 'var(--accent-green)';}
+            updateMainActionButton(); const userRef = db.collection('users').doc(currentUserId);
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const userDoc = await transaction.get(userRef); if (!userDoc.exists) throw "User document does not exist!";
+                    const newBalance = userDoc.data().balance + winnings; transaction.update(userRef, { balance: newBalance });
+                });
+                db.collection('users').doc(currentUserId).collection('betHistory').add({
+                    amount: userBetAmountThisRound, outcome: 'win', multiplier: currentMultiplier, winnings: winnings, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (error) { console.error("Cash out transaction failed: ", error);
+                if(gameRoundResult) { gameRoundResult.textContent = `Cash out OK, balance update error. Contact support.`; gameRoundResult.style.color = 'var(--accent-yellow)';}
+            }
+        }
+        async function placeBetNew() { /* ... Same as previous, with turnover update ... */ 
+            if (gameState !== 'BETTING' || !currentUserId) {
+                if(gameRoundResult) { gameRoundResult.textContent = "Betting phase is over or not logged in."; gameRoundResult.style.color = 'var(--accent-yellow)';}
+                return;
+            }
+            const bet = parseFloat(betAmountInputNew.value); const userRef = db.collection('users').doc(currentUserId);
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const userDoc = await transaction.get(userRef); if (!userDoc.exists) throw "User document does not exist!";
+                    const userData = userDoc.data(); const currentDBBalance = userData.balance;
+                    if (isNaN(bet) || bet <= 0) throw "Invalid bet amount."; if (bet > currentDBBalance) throw "Insufficient balance.";
+                    const newBalance = currentDBBalance - bet; const newCurrentTurnover = (userData.currentTurnover || 0) + bet;
+                    transaction.update(userRef, { balance: newBalance, currentTurnover: newCurrentTurnover });
+                    userBetAmountThisRound = bet; hasCashedOutThisRound = false; 
+                    if(gameRoundResult) { gameRoundResult.textContent = `Bet Rs. ${bet.toFixed(2)} placed!`; gameRoundResult.style.color = 'var(--accent-green)';}
+                });
+            } catch (error) {
+                console.error("Bet placement transaction failed: ", error);
+                if(gameRoundResult) { gameRoundResult.textContent = typeof error === 'string' ? error : "Error placing bet."; gameRoundResult.style.color = 'var(--accent-red)';}
+                userBetAmountThisRound = 0;
+            }
+            updateMainActionButton();
+        }
+        function addCrashToHistoryReel(value) { /* ... Same as previous version ... */ 
+            previousCrashesHistory.unshift({ value }); 
+            if (previousCrashesHistory.length > 20) previousCrashesHistory.pop(); renderPreviousCrashesReel();
+        }
+        function renderPreviousCrashesReel() { /* ... Same as previous version ... */ 
+            if(!gameHistoryReel) return; gameHistoryReel.innerHTML = ""; 
+            previousCrashesHistory.forEach(crash => {
+                const item = document.createElement('span'); item.classList.add('history-item'); item.textContent = `${crash.value.toFixed(2)}x`;
+                if (crash.value < 1.5) item.classList.add('low'); else if (crash.value < 3) item.classList.add('medium'); else item.classList.add('high');
+                gameHistoryReel.appendChild(item);
+            });
+        }
+        function prepareNextRoundNew() { /* ... Same as previous version ... */ 
+            gameState = 'PREPARING'; let delay = NEXT_ROUND_DELAY_MS / 1000; updateMainActionButton();
+            if (nextRoundTimerId) clearTimeout(nextRoundTimerId); let nextRoundInterval = setInterval(() => {
+                 if(gameStatusInfo) gameStatusInfo.textContent = `Next round in ${delay}s...`; delay--; if (delay < 0) clearInterval(nextRoundInterval);
+            }, 1000);
+            nextRoundTimerId = setTimeout(() => {
+                clearInterval(nextRoundInterval); 
+                if (auth.currentUser && document.getElementById('dashboardPage').classList.contains('active') && document.getElementById('gameSection').classList.contains('active')) { 
+                     startBettingPhaseNew();
+                } else { gameState = 'IDLE'; if(gameStatusInfo) gameStatusInfo.textContent = "Game paused."; updateMainActionButton(); }
+            }, NEXT_ROUND_DELAY_MS);
+        }
+        function resetRoundVisualsAndStateNew() { /* ... Same as previous version ... */ 
+            currentMultiplier = 1.00; userBetAmountThisRound = 0; hasCashedOutThisRound = false; autoCashoutTarget = 0; 
+            if(gameRoundResult) gameRoundResult.textContent = ""; if(gameMultiplierMain) gameMultiplierMain.classList.remove('crashed');
+            updateMultiplierDisplayVisualsNew(); 
+        }
+        function resetGameNew() { /* ... Same as previous version ... */ 
+            if(bettingPhaseTimeoutId) clearTimeout(bettingPhaseTimeoutId); bettingPhaseTimeoutId = null;
+            if(gameIntervalId) clearInterval(gameIntervalId); gameIntervalId = null;
+            if(nextRoundTimerId) clearTimeout(nextRoundTimerId); nextRoundTimerId = null;
+            gameState = 'IDLE'; resetRoundVisualsAndStateNew();
+            if(gameStatusInfo) gameStatusInfo.textContent = "Game paused. Login to play."; updateMainActionButton();
+        }
+        function initializeGameNew() { /* ... Same as previous version ... */ 
+            if (!auth.currentUser || !document.getElementById('dashboardPage').classList.contains('active') || !document.getElementById('gameSection').classList.contains('active')) {
+                gameState = 'IDLE'; if(gameStatusInfo) gameStatusInfo.textContent = "Game paused."; updateMainActionButton(); return;
+            }
+            if (gameState === 'IDLE' || gameState === 'PREPARING' || gameState === 'CRASHED') { 
+                resetRoundVisualsAndStateNew(); renderPreviousCrashesReel(); startBettingPhaseNew();
+            }
+        }
+
+        mainActionButton?.addEventListener('click', () => { if (gameState === 'BETTING') placeBetNew(); else if (gameState === 'RUNNING' && userBetAmountThisRound > 0 && !hasCashedOutThisRound) cashOutNew(); });
+        bettingModeTabs.forEach(tab => { tab.addEventListener('click', () => { bettingModeTabs.forEach(t => t.classList.remove('active')); tab.classList.add('active'); const isManual = tab.dataset.mode === 'manual'; if(manualBettingPanel) manualBettingPanel.style.display = isManual ? 'flex' : 'none'; if(autoBettingPanel) autoBettingPanel.style.display = isManual ? 'none' : 'block'; }); });
+        amountAdjustButtons.forEach(button => { button.addEventListener('click', () => { if (!betAmountInputNew) return; let currentValue = parseFloat(betAmountInputNew.value) || 0; const action = button.dataset.action; if (action === 'half') currentValue = Math.max(1, Math.floor(currentValue / 2)); else if (action === 'double') currentValue = Math.max(1, currentValue * 2); betAmountInputNew.value = currentValue; if(gameState === 'BETTING') updateMainActionButton(); }); });
+        betAmountInputNew?.addEventListener('input', () => { if(gameState === 'BETTING') updateMainActionButton(); });
+
+        // --- Deposit, Withdraw, Support Forms ---
+        depositForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUserId) { displayFormMessage(depositMessage, "Please login to submit a deposit request.", 'error'); return; }
+            const amountStr = document.getElementById('depositAmount').value;
+            const method = document.getElementById('depositMethod').value;
+            const accountNumber = document.getElementById('depositAccount').value;
+            const txnId = document.getElementById('depositTxnId').value;
+            const amount = parseFloat(amountStr);
+
+            if (!amountStr || !method || !accountNumber || !txnId) { displayFormMessage(depositMessage, "Please fill all required fields.", 'error'); return; }
+            if (isNaN(amount) || amount < 100) { displayFormMessage(depositMessage, "Minimum deposit amount is Rs. 100.", 'error'); return; }
+
+            const userRef = db.collection('users').doc(currentUserId);
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists) throw "User not found";
+                    const userDataFromTx = userDoc.data();
+
+                    const depositReqRef = db.collection('depositRequests').doc(); 
+                    transaction.set(depositReqRef, {
+                        userId: currentUserId, userEmail: auth.currentUser.email,
+                        amount: amount, method: method, senderAccountNumber: accountNumber, 
+                        transactionId: txnId, status: 'pending_approval', // Set to pending approval
+                        requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    transaction.update(userRef, {
+                        turnoverRequired: (userDataFromTx.turnoverRequired || 0) + amount, // Add to existing or set new
+                        currentTurnover: userDataFromTx.currentTurnover || 0, // Keep current turnover, don't reset yet
+                        turnoverRequirementActive: true
+                    });
+
+                    // Referral Bonus Logic - Placeholder for Cloud Function
+                    if (userDataFromTx.referredBy && !userDataFromTx.firstDepositMade) {
+                        console.log(`DEPOSIT: User ${currentUserId} made first deposit. Referred by ${userDataFromTx.referredBy}. Bonus should be processed by Cloud Function upon deposit approval.`);
+                        // The actual update to referrer's earnings and user's firstDepositMade
+                        // should happen in a Cloud Function after deposit is *approved* by an admin.
+                        // For example, a Cloud Function could listen to depositRequests status changes.
+                        // transaction.update(userRef, { firstDepositMade: true }); // This part can be done by CF
+                    }
+                });
+                displayFormMessage(depositMessage, "Deposit request submitted for approval. Turnover requirement updated.", 'success');
+                depositForm.reset();
+            } catch (error) {
+                console.error("Error submitting deposit request:", error);
+                displayFormMessage(depositMessage, `Error: ${error.message || "Please try again."}`, 'error');
+            }
+        });
+
+        withdrawForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUserId || !currentUserData) { displayFormMessage(withdrawMessage, "Please login.", 'error'); return; }
+            const amountStr = document.getElementById('withdrawAmount').value;
+            const method = document.getElementById('withdrawMethod').value;
+            const accountNumber = document.getElementById('withdrawAccount').value; 
+            const amount = parseFloat(amountStr);
+
+            if (isNaN(amount) || !method || !accountNumber) { displayFormMessage(withdrawMessage, "Please fill all fields correctly.", 'error'); return; }
+            if (amount < 500) { displayFormMessage(withdrawMessage, "Minimum withdrawal is Rs. 500.", 'error'); return; }
+            if (amount > currentUserData.balance) { displayFormMessage(withdrawMessage, "Insufficient balance.", 'error'); return; }
+
+            if (currentUserData.turnoverRequirementActive) {
+                if ((currentUserData.currentTurnover || 0) < (currentUserData.turnoverRequired || 0)) {
+                    const remaining = (currentUserData.turnoverRequired || 0) - (currentUserData.currentTurnover || 0);
+                    displayFormMessage(withdrawMessage, `Turnover not met. Wager Rs. ${remaining.toFixed(2)} more.`, 'error');
+                    return;
+                }
+            }
+
+            const userRef = db.collection('users').doc(currentUserId);
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists) throw "User not found";
+                    const currentDBBalance = userDoc.data().balance;
+                    if (amount > currentDBBalance) throw "Insufficient balance (checked again).";
+
+                    // DO NOT directly deduct balance here. Create a PENDING request. Admin approves and deducts.
+                    // transaction.update(userRef, { 
+                    //     balance: currentDBBalance - amount,
+                    //     turnoverRequirementActive: false, 
+                    // });
+                    
+                    const withdrawReqRef = db.collection('withdrawRequests').doc();
+                    transaction.set(withdrawReqRef, {
+                        userId: currentUserId, userEmail: auth.currentUser.email,
+                        amount: amount, method: method, receiverWalletNumber: accountNumber,
+                        status: 'pending_approval', 
+                        requestedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+                displayFormMessage(withdrawMessage, "Withdrawal request submitted for approval. Balance will be updated after admin review.", 'success');
+                withdrawForm.reset();
+            } catch (error) {
+                console.error("Error submitting withdrawal request:", error);
+                displayFormMessage(withdrawMessage, `Error: ${error.message || "Please try again."}`, 'error');
+            }
+        });
+
+        supportForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('supportName').value;
+            const email = document.getElementById('supportEmail').value; 
+            const subject = document.getElementById('supportSubject').value;
+            const messageText = document.getElementById('supportMessageText').value;
+
+            if (!name || !email || !subject || !messageText) { displayFormMessage(supportFormMessage, "Please fill all fields.", 'error'); return; }
+            try {
+                await db.collection('supportTickets').add({
+                    userId: currentUserId || 'guest', name: name, email: email, subject: subject, message: messageText,
+                    status: 'open', submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                displayFormMessage(supportFormMessage, "Your message has been sent. We'll get back to you soon.", 'success');
+                supportForm.reset();
+                if (auth.currentUser && document.getElementById('supportEmail') && auth.currentUser.email) {
+                    document.getElementById('supportEmail').value = auth.currentUser.email;
+                }
+            } catch (error) {
+                console.error("Error sending support message:", error);
+                displayFormMessage(supportFormMessage, "Error sending message. Please try again.", 'error');
+            }
+        });
+
+        // --- Turnover and Referral UI Updates ---
+        function updateTurnoverUI() {
+            if (!currentUserData || !turnoverInfoDisplay) return;
+            if (currentUserData.turnoverRequirementActive && (currentUserData.turnoverRequired || 0) > 0) {
+                turnoverInfoDisplay.style.display = 'block';
+                const current = currentUserData.currentTurnover || 0;
+                const required = currentUserData.turnoverRequired || 0;
+                currentTurnoverDisplay.textContent = `Rs. ${current.toFixed(2)}`;
+                requiredTurnoverDisplay.textContent = `Rs. ${required.toFixed(2)}`;
+                if (current >= required) {
+                    turnoverStatusMessage.textContent = "Turnover met! You can request withdrawal.";
+                    turnoverStatusMessage.style.color = 'var(--accent-green)';
+                } else {
+                    turnoverStatusMessage.textContent = `Wager Rs. ${(required - current).toFixed(2)} more.`;
+                    turnoverStatusMessage.style.color = 'var(--accent-red)';
+                }
+            } else {
+                turnoverInfoDisplay.style.display = 'none';
+            }
+        }
+
+        async function updateReferralSectionUI() {
+            if (!currentUserData || !userReferralCodeSectionDisplay) return;
+            userReferralCodeSectionDisplay.textContent = currentUserData.referralCode || 'N/A';
+            totalReferralEarningsDisplay.textContent = `Rs. ${(currentUserData.referralEarnings || 0).toFixed(2)}`;
+            
+            if (currentUserId) {
+                console.log("Attempting to fetch referrals for currentUserId:", currentUserId);
+                try {
+                    const referralsSnapshot = await db.collection('referralRecords')
+                                                  .where('referrerUid', '==', currentUserId)
+                                                  .orderBy('signupTimestamp', 'desc')
+                                                  .get();
+                    referredUsersList.innerHTML = ''; 
+                    if (referralsSnapshot.empty) {
+                        noReferralsMessage.style.display = 'block';
+                        noReferralsMessage.textContent = "You haven't referred anyone yet.";
+                    } else {
+                        noReferralsMessage.style.display = 'none';
+                        referralsSnapshot.forEach(doc => {
+                            const data = doc.data(); const listItem = document.createElement('li');
+                            const emailParts = data.referredUserEmail.split('@'); const namePart = emailParts[0]; const domainPart = emailParts[1];
+                            const maskedName = namePart.length > 2 ? namePart[0] + '*'.repeat(Math.max(0,namePart.length - 2)) + namePart.slice(-1) : namePart;
+                            const maskedDomain = domainPart.length > 3 ? domainPart.substring(0,1) + '*'.repeat(Math.max(0,domainPart.length - 3)) + domainPart.substring(domainPart.length-2) : domainPart;
+                            listItem.textContent = `${maskedName}@${maskedDomain} - Status: ${data.status || 'Signed Up'}`;
+                            referredUsersList.appendChild(listItem);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Full error object fetching referrals:", error);
+                    noReferralsMessage.style.display = 'block';
+                    noReferralsMessage.textContent = 'Could not load referrals. Check permissions/index.';
+                    if (error.code === 'failed-precondition') {
+                         noReferralsMessage.textContent += ' Missing index? Check console for link.';
+                    }
+                }
+            } else {
+                 noReferralsMessage.textContent = 'Login to see referrals.';
+            }
+        }
+        
+        copyReferralCodeBtn?.addEventListener('click', () => {
+            if (currentUserData.referralCode) {
+                navigator.clipboard.writeText(currentUserData.referralCode)
+                    .then(() => displayFormMessage(referralMessage, 'Referral code copied!', 'success'))
+                    .catch(err => displayFormMessage(referralMessage, 'Failed to copy.', 'error'));
+            }
+        });
+    </script>
+</body>
+</html>
